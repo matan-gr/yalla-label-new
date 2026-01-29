@@ -1,7 +1,7 @@
 # Yalla Label Enterprise: The Automated Cloud Governance & FinOps Platform
 
 ## What This Application Does
-Yalla Label is a strategic control plane designed for Google Cloud Platform (GCP). It acts as a layer above your infrastructure that automatically discovers, inventories, and standardizes your cloud assets. 
+Yalla Label is a strategic tool designed for Google Cloud Platform. It acts as a layer above your infrastructure that automatically discovers, inventories, and standardizes your cloud assets. 
 
 Unlike standard cloud consoles which list resources technically (IPs, CPUs), Yalla Label organizes them financially and operationally. It uses Artificial Intelligence (Google Gemini) to "read" your infrastructure, inferring ownership, environment, and purpose from cryptic resource names, and applies the necessary metadata (labels) to ensure every dollar spent is accounted for.
 
