@@ -1,0 +1,175 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --sidebar-width: 280px;
+}
+
+/* --- Typography --- */
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-feature-settings: 'tnum' on, 'cv11' on, 'ss01' on, 'cv05' on; /* Tabular nums, specific character variants */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  margin: 0;
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em; /* Tighter headings for professional look */
+}
+
+p {
+  line-height: 1.6;
+}
+
+/* --- Experiment Light Mode (Default) --- */
+/* Clean, airy, slate-based foundation. Increased contrast for readability. */
+html:not(.dark) body {
+  color: #0f172a; /* Slate 900 - Sharp text */
+  background-color: #f8fafc; /* Slate 50 */
+}
+
+/* --- Experiment Dark Mode --- */
+/* Deep, rich "Void" dark mode */
+html.dark body {
+  color: #e2e8f0; /* Slate 200 - Softer white for eye comfort */
+  background-color: #020617; /* Slate 950 - Sharper black */
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.3); /* Indigo 500 with opacity */
+  color: inherit;
+}
+
+/* --- Refined Background Mesh --- */
+html.dark .bg-mesh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background-color: #020617;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(79, 70, 229, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(124, 58, 237, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0) 0%, transparent 100%);
+  will-change: transform;
+}
+
+html:not(.dark) .bg-mesh {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(circle at 0% 0%, rgba(226, 232, 240, 0.5) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(241, 245, 249, 0.7) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.03) 0%, transparent 60%);
+}
+
+/* --- Glass Panels --- */
+.glass-panel {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+html.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.75); /* Higher opacity for better text readability */
+  border: 1px solid rgba(255, 255, 255, 0.08); /* Sharper border */
+  box-shadow: 
+    0 0 0 1px rgba(0,0,0,0.2),
+    0 8px 20px -6px rgba(0, 0, 0, 0.5);
+}
+
+html:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.9); /* High opacity for contrast against mesh */
+  border: 1px solid rgba(203, 213, 225, 0.8); /* Slate 300ish border */
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 4px 12px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* --- Scrollbars --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5); /* Darker default thumb */
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8); /* Slate 500 */
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+/* --- Spotlight Effect Utility --- */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+}
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    800px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
+    rgba(255, 255, 255, 0.08),
+    transparent 40%
+  );
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* --- Shimmer Animation --- */
+@keyframes shimmer {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s infinite linear;
+}
+
+/* --- Transitions --- */
+tr {
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}

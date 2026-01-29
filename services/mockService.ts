@@ -1,0 +1,334 @@
+
+import { GceResource, ResourceType, LabelHistoryEntry, AnalysisResult, TimelineEntry } from '../types';
+
+// --- Constants & Generators ---
+
+const USERS = [
+  'jane.doe@company.com', 
+  'devops-bot@company.iam.gserviceaccount.com', 
+  'john.smith@company.com', 
+  'terraform-cloud@system.gserviceaccount.com'
+];
+
+const ACTIONS = ['UPDATE', 'APPLY_PROPOSAL'];
+
+const generateHistory = (count: number): LabelHistoryEntry[] => {
+  if (count === 0) return [];
+  const history: LabelHistoryEntry[] = [];
+  const now = Date.now();
+  
+  for (let i = 0; i < count; i++) {
+    // Random time in last 30 days
+    const timeOffset = Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000); 
+    history.push({
+      timestamp: new Date(now - timeOffset),
+      actor: USERS[Math.floor(Math.random() * USERS.length)],
+      changeType: ACTIONS[Math.floor(Math.random() * ACTIONS.length)] as any,
+      previousLabels: { 'env': 'dev', 'temp': 'true' },
+      newLabels: { 'env': 'prod', 'cost-center': 'cc-102' }
+    });
+  }
+  return history.sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime());
+};
+
+// --- Scenario Builders ---
+
+const createResource = (
+  partial: Partial<GceResource> & { name: string, type: ResourceType, zone: string }
+): GceResource => {
+  return {
+    id: Math.random().toString(36).substring(2, 18),
+    status: 'RUNNING',
+    creationTimestamp: new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)).toISOString(),
+    labels: {},
+    labelFingerprint: 'mock-fingerprint',
+    history: generateHistory(Math.random() > 0.7 ? 2 : 0),
+    provisioningModel: 'STANDARD',
+    ...partial
+  };
+};
+
+/**
+ * Generates a realistic Enterprise environment
+ */
+export const generateMockResources = (count: number = 50): GceResource[] => {
+  const resources: GceResource[] = [];
+
+  // 1. The "Legacy Production" Monolith (High Cost, Stable)
+  // -------------------------------------------------------
+  const prodNet = 'vpc-production';
+  const prodSubnet = 'subnet-us-central1';
+  
+  // Database Primary
+  resources.push(createResource({
+    name: 'prod-legacy-db-primary',
+    type: 'CLOUD_SQL',
+    zone: 'us-central1-a',
+    machineType: 'db-custom-16-65536',
+    sizeGb: '1024',
+    databaseVersion: 'POSTGRES_13',
+    status: 'RUNNABLE',
+    labels: { environment: 'production', app: 'legacy-core', 'cost-center': 'cc-500', owner: 'data-team' },
+    ips: [{ network: prodNet, subnetwork: prodSubnet, internal: '10.0.1.5' }]
+  }));
+
+  // App Servers Group
+  for(let i=1; i<=3; i++) {
+    resources.push(createResource({
+      name: `prod-app-server-0${i}`,
+      type: 'INSTANCE',
+      zone: 'us-central1-a',
+      machineType: 'n2-standard-8',
+      status: 'RUNNING',
+      labels: { environment: 'production', app: 'legacy-core', 'cost-center': 'cc-500' }, // Missing owner (Policy Violation)
+      ips: [{ network: prodNet, subnetwork: prodSubnet, internal: `10.0.1.1${i}` }],
+      disks: [{ deviceName: 'boot', sizeGb: 100, type: 'pd-ssd', boot: true }]
+    }));
+  }
+
+  // 2. The "Modern Cloud Native" Stack (GKE + Cloud Run)
+  // ----------------------------------------------------
+  // GKE Cluster
+  resources.push(createResource({
+    name: 'k8s-prod-us-east',
+    type: 'GKE_CLUSTER',
+    zone: 'us-east1-b',
+    status: 'RUNNING',
+    labels: { environment: 'production', orchestrator: 'gke', 'cost-center': 'cc-600', owner: 'platform-eng' },
+    clusterDetails: {
+      nodeCount: 12,
+      version: '1.27.3-gke.100',
+      endpoint: '34.72.10.5',
+      isAutopilot: true,
+      network: prodNet,
+      subnetwork: 'subnet-us-east1',
+      nodePools: [{ name: 'autopilot-pool', version: '1.27.3', status: 'RUNNING', nodeCount: 12, machineType: 'e2-standard-4' }]
+    }
+  }));
+
+  // Microservices (Cloud Run)
+  ['payment-service', 'auth-service', 'notification-service'].forEach((svc, idx) => {
+    resources.push(createResource({
+      name: `prod-${svc}`,
+      type: 'CLOUD_RUN',
+      zone: 'us-east1',
+      status: 'READY',
+      machineType: 'Serverless',
+      url: `https://${svc}-xh5k.a.run.app`,
+      labels: { environment: 'production', microservice: svc, 'cost-center': 'cc-600' },
+      ingress: idx === 0 ? 'all' : 'internal' // Payments is public, others internal
+    }));
+  });
+
+  // 3. The "Shadow IT" / Dev Chaos (Messy, Violations, Waste)
+  // ---------------------------------------------------------
+  const devNet = 'default';
+  
+  // Huge Stopped GPU Instance (Waste)
+  resources.push(createResource({
+    name: 'dev-ml-experiment-gpu',
+    type: 'INSTANCE',
+    zone: 'us-west1-b',
+    machineType: 'a2-highgpu-1g', // Expensive!
+    status: 'STOPPED', // Stopped but costing storage
+    provisioningModel: 'STANDARD',
+    labels: { created_by: 'intern', 'Env': 'dev' }, // Non-standard label 'Env' (Case Issue)
+    ips: [{ network: devNet, subnetwork: 'default', internal: '10.128.0.5', external: '35.202.10.1' }], // Public IP on dev box
+    disks: [
+      { deviceName: 'boot', sizeGb: 50, type: 'pd-standard', boot: true },
+      { deviceName: 'training-data', sizeGb: 2000, type: 'pd-ssd', boot: false } // Huge wasted disk
+    ]
+  }));
+
+  // Unlabeled Test VMs
+  for(let i=1; i<=4; i++) {
+    resources.push(createResource({
+      name: `test-box-${i}`,
+      type: 'INSTANCE',
+      zone: 'us-west1-b',
+      machineType: 'e2-micro',
+      status: 'RUNNING',
+      provisioningModel: 'SPOT',
+      labels: { 'env': 'testing' }, // 'testing' vs 'dev' (Strategy Drift)
+      ips: [{ network: devNet, subnetwork: 'default', internal: `10.128.0.1${i}`, external: `34.100.20.${i}` }], // Exposed
+      disks: [{ deviceName: 'boot', sizeGb: 20, type: 'pd-balanced', boot: true }]
+    }));
+  }
+
+  // Orphaned Disks
+  resources.push(createResource({
+    name: 'backup-disk-nov-2023',
+    type: 'DISK',
+    zone: 'us-central1-a',
+    sizeGb: '500',
+    machineType: 'pd-standard',
+    status: 'READY', // Not attached
+    labels: { description: 'do-not-delete' }
+  }));
+
+  // 4. Global Storage
+  // -----------------
+  resources.push(createResource({
+    name: 'company-assets-public',
+    type: 'BUCKET',
+    zone: 'us-multi-region',
+    storageClass: 'STANDARD',
+    status: 'READY',
+    publicAccess: true,
+    locationType: 'multi-region',
+    labels: { 'data-classification': 'public', environment: 'production' }
+  }));
+
+  resources.push(createResource({
+    name: 'finance-records-archive',
+    type: 'BUCKET',
+    zone: 'us-east1',
+    storageClass: 'COLDLINE',
+    status: 'READY',
+    publicAccess: false,
+    labels: { 'data-classification': 'restricted', 'dept': 'finance' } // Non-standard key 'dept'
+  }));
+
+  return resources;
+};
+
+/**
+ * Simulates the AI Labeling logic purely client-side for the Demo
+ */
+export const mockAnalyzeResources = (resources: GceResource[]): AnalysisResult[] => {
+  return resources.map(r => {
+    const suggestions: Record<string, string> = {};
+    
+    // Simple heuristic rules to mimic AI
+    if (r.name.includes('prod')) suggestions['environment'] = 'production';
+    else if (r.name.includes('dev') || r.name.includes('test')) suggestions['environment'] = 'development';
+    else if (r.name.includes('staging')) suggestions['environment'] = 'staging';
+
+    if (r.name.includes('db') || r.name.includes('sql')) suggestions['app'] = 'database';
+    else if (r.name.includes('web') || r.name.includes('frontend')) suggestions['app'] = 'frontend';
+    else if (r.name.includes('api') || r.name.includes('svc')) suggestions['app'] = 'backend';
+
+    if (!r.labels['cost-center']) {
+      suggestions['cost-center'] = r.name.includes('prod') ? 'cc-500' : 'cc-100';
+    }
+
+    if (!r.labels['owner']) {
+        suggestions['owner'] = 'platform-engineering';
+    }
+
+    return {
+      resourceId: r.id,
+      suggestedLabels: suggestions,
+      reasoning: "Based on resource name patterns and common infrastructure conventions."
+    };
+  }).filter(res => Object.keys(res.suggestedLabels).length > 0);
+};
+
+export const generateMockTimeline = (currentResources: GceResource[]): TimelineEntry[] => {
+    const timeline: TimelineEntry[] = [];
+    const now = new Date();
+    
+    // Create 3 snapshots: 7 days ago, 3 days ago, 1 day ago
+    [7, 3, 1].forEach(daysAgo => {
+        const date = new Date(now);
+        date.setDate(date.getDate() - daysAgo);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Clone current resources using JSON to break reference
+        let snapshotResources = JSON.parse(JSON.stringify(currentResources));
+        
+        // Introduce drift based on daysAgo
+        snapshotResources = snapshotResources.map((r: any) => {
+            // 7 days ago: Some resources didn't exist yet (simulate ADDED in current)
+            if (daysAgo === 7 && Math.random() > 0.85) return null;
+            
+            // Modify some labels to simulate drift (MODIFIED)
+            if (Math.random() > 0.8) {
+                // Delete a current label to simulate it was added later
+                const keys = Object.keys(r.labels);
+                if (keys.length > 0) {
+                    delete r.labels[keys[0]];
+                }
+                // Or add a legacy label
+                r.labels = { ...r.labels, 'legacy-tag': 'true' };
+            }
+            
+            // Change status drift
+            if (Math.random() > 0.9) {
+                r.status = r.status === 'RUNNING' ? 'STOPPED' : 'RUNNING';
+            }
+            
+            // Re-calc hash for drift detection logic
+            r.labelHash = JSON.stringify(r.labels);
+            
+            return r;
+        }).filter(Boolean); // Remove nulls
+
+        // Add some resources that were deleted since then (REMOVED in current)
+        if (daysAgo === 7) {
+             // Add fake deleted resources
+             snapshotResources.push({
+                 id: 'deleted-resource-legacy-1',
+                 name: 'legacy-monolith-server',
+                 type: 'INSTANCE',
+                 status: 'TERMINATED',
+                 zone: 'us-central1-a',
+                 labels: { env: 'prod', legacy: 'true' },
+                 labelHash: JSON.stringify({ env: 'prod', legacy: 'true' }),
+                 meta: { machineType: 'n1-standard-4', sizeGb: 100 }
+             });
+        }
+
+        timeline.push({
+            date: dateStr,
+            timestamp: date.getTime(),
+            resources: snapshotResources
+        });
+    });
+    
+    return timeline;
+};
+
+export const mockGenerateComplianceReport = (resources: GceResource[]): string => {
+    // Return structured JSON string for the Demo
+    const report = {
+      summary: {
+        grade: "C+",
+        score: 72,
+        overview: "The infrastructure shows significant signs of 'Shadow IT' and Labeling Strategy Drift. While production assets are generally stable, the development environment is chaotic, with multiple labeling strategies competing for dominance."
+      },
+      metrics: {
+        financial_clarity: { grade: "C", value: "$4,200/mo", assessment: "Unallocated spend is high due to missing cost-centers." },
+        compliance_posture: { grade: "B-", value: "78%", assessment: "Basic tagging is present but inconsistent." },
+        operational_risk: { grade: "D", value: "Critical", assessment: "Public IPs detected on internal dev assets." }
+      },
+      financial_analysis: {
+        unallocated_spend: "$4,200/mo",
+        zombie_waste: "$850/mo",
+        opportunity: "Shutdown 'dev-ml-experiment-gpu' to save $600/mo immediately."
+      },
+      governance_issues: {
+        casing_issues: [
+          { key: "env", variants: ["Env", "env"], impact: "High" }
+        ],
+        fragmentation: [
+          { key: "environment", values: ["prod", "production"], recommendation: "Standardize on 'production'" },
+          { key: "env", values: ["testing", "dev"], recommendation: "Standardize on 'dev'" }
+        ]
+      },
+      operational_risks: {
+        production_exposure: { count: 4, description: "Development assets with open public IPs." },
+        database_risks: { count: 1, description: "Legacy DB missing backup tags." },
+        policy_violations: [
+          { rule: "Mandatory Label: Owner", count: 12, severity: "HIGH" },
+          { rule: "No Public Access", count: 5, severity: "CRITICAL" }
+        ]
+      },
+      remediation_plan: [
+        { priority: "P0 (Immediate)", action: "Restrict public IP on 'dev-ml-experiment-gpu'", impact: "Close Security Hole", effort: "Low" },
+        { priority: "P1 (Tactical)", action: "Apply 'Standard Env Tagging' pipeline", impact: "Fix IaC Drift", effort: "Medium" },
+        { priority: "P2 (Strategic)", action: "Enforce Cost Center Policy", impact: "Enable Chargeback", effort: "High" }
+      ]
+    };
+    return JSON.stringify(report);
+};
