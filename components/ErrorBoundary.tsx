@@ -1,4 +1,5 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from './DesignSystem';
 
@@ -74,7 +75,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <Button 
                 variant="primary" 
                 onClick={this.handleReload}
-                className="bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 border-transparent text-white"
+                className="bg-red-600 hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-50 border-transparent text-white"
                 leftIcon={<RefreshCw className="w-4 h-4" />}
               >
                 Reload App

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { GceResource, LabelOperation, OperationType, SavedPipeline } from '../types';
 import { 
@@ -173,8 +174,9 @@ const applyOperations = (labels: Record<string, string>, resource: GceResource, 
                     const match = resource.name.match(re);
                     if (match) {
                         op.config.groups.forEach(g => {
-                            if (match[g.index]) {
-                                currentLabels[g.targetKey] = match[g.index];
+                            const val = match[g.index];
+                            if (typeof val === 'string') {
+                                currentLabels[g.targetKey] = val;
                             }
                         });
                     }
@@ -655,7 +657,7 @@ export const LabelingStudio: React.FC<LabelingStudioProps> = ({
                                                                     const toEl = document.getElementById(toInputId) as HTMLInputElement | null;
                                                                     
                                                                     if (fromEl && toEl && fromEl.value && toEl.value) {
-                                                                        const currentMap = op.config.valueMap || {};
+                                                                        const currentMap = (op.config.valueMap || {}) as Record<string, string>;
                                                                         updateConfig(op.id, 'valueMap', { 
                                                                             ...currentMap, 
                                                                             [fromEl.value]: toEl.value 

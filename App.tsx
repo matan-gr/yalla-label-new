@@ -342,12 +342,6 @@ export const App = () => {
                 savedPipelines={savedPipelines}
                 onSavePipeline={handleSavePipeline}
               />
-              
-              <ComplianceReportModal 
-                 isOpen={showReport}
-                 onClose={() => setShowReport(false)}
-                 report={report}
-              />
             </PageTransition>
           )}
 
@@ -390,6 +384,13 @@ export const App = () => {
             </PageTransition>
           )}
         </AnimatePresence>
+
+        {/* Global Compliance Report Modal */}
+        <ComplianceReportModal 
+            isOpen={showReport}
+            onClose={() => setShowReport(false)}
+            report={report}
+        />
       </Layout>
     </ErrorBoundary>
   );
